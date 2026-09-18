@@ -4,9 +4,12 @@ use ff::Field;
 pub(crate) mod prover;
 pub(crate) mod verifier;
 
+/// A lookup argument: each input expression must appear in the corresponding table expression.
 #[derive(Clone, Debug)]
-pub(crate) struct Argument<F: Field> {
+pub struct Argument<F: Field> {
+    /// Input expressions, compressed with the challenge theta.
     pub input_expressions: Vec<Expression<F>>,
+    /// Table expressions, compressed with the challenge theta.
     pub table_expressions: Vec<Expression<F>>,
 }
 

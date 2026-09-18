@@ -155,6 +155,31 @@ impl<C: CurveAffine> Params<C> {
         MSM::new(self)
     }
 
+    /// Number of generators, `2^k`.
+    pub fn n(&self) -> u64 {
+        self.n
+    }
+
+    /// The monomial-basis generators `G`.
+    pub fn g(&self) -> &[C] {
+        &self.g
+    }
+
+    /// The Lagrange-basis generators, used by [`Params::commit_lagrange`].
+    pub fn g_lagrange(&self) -> &[C] {
+        &self.g_lagrange
+    }
+
+    /// The blinding generator `W`.
+    pub fn w(&self) -> C {
+        self.w
+    }
+
+    /// The inner-product-argument generator `U`.
+    pub fn u(&self) -> C {
+        self.u
+    }
+
     /// Getter for g generators
     pub fn get_g(&self) -> Vec<C> {
         self.g.clone()

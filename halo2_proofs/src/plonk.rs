@@ -19,8 +19,10 @@ mod assigned;
 mod circuit;
 mod error;
 mod keygen;
-mod lookup;
-pub(crate) mod permutation;
+/// The lookup argument.
+pub mod lookup;
+/// The permutation (equality-constraint) argument.
+pub mod permutation;
 mod vanishing;
 
 mod prover;
@@ -102,6 +104,36 @@ impl<C: CurveAffine> VerifyingKey<C> {
         transcript.common_scalar(self.transcript_repr)?;
 
         Ok(())
+    }
+
+    /// The constraint system this key was generated for.
+    pub fn cs(&self) -> &ConstraintSystem<C::Scalar> {
+        &self.cs
+    }
+
+    /// The evaluation domain this key was generated over.
+    pub fn domain(&self) -> &EvaluationDomain<C::Scalar> {
+        &self.domain
+    }
+
+    /// Commitments to the fixed columns, indexed by fixed column index.
+    pub fn fixed_commitments(&self) -> &[C] {
+        &self.fixed_commitments
+    }
+
+    /// The permutation argument's verifying key (one commitment per permuted column).
+    pub fn permutation(&self) -> &permutation::VerifyingKey<C> {
+        &self.permutation
+    }
+
+    /// The constraint system degree the key was generated with.
+    pub fn cs_degree(&self) -> usize {
+        self.cs_degree
+    }
+
+    /// The scalar absorbed into the transcript by [`VerifyingKey::hash_into`].
+    pub fn transcript_repr(&self) -> C::Scalar {
+        self.transcript_repr
     }
 
     /// Obtains a pinned representation of this verification key that contains

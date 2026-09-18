@@ -33,7 +33,8 @@ impl<C: ColumnType> Column<C> {
         Column { index, column_type }
     }
 
-    pub(crate) fn index(&self) -> usize {
+    /// Index of this column among columns of the same type.
+    pub fn index(&self) -> usize {
         self.index
     }
 
@@ -279,6 +280,23 @@ pub struct FixedQuery {
     pub(crate) rotation: Rotation,
 }
 
+impl FixedQuery {
+    /// Index of this query in the constraint system's query list of this column type.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Index of the queried column.
+    pub fn column_index(&self) -> usize {
+        self.column_index
+    }
+
+    /// Rotation of this query.
+    pub fn rotation(&self) -> Rotation {
+        self.rotation
+    }
+}
+
 /// Query of advice column at a certain relative location
 #[derive(Copy, Clone, Debug)]
 pub struct AdviceQuery {
@@ -290,6 +308,23 @@ pub struct AdviceQuery {
     pub(crate) rotation: Rotation,
 }
 
+impl AdviceQuery {
+    /// Index of this query in the constraint system's query list of this column type.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Index of the queried column.
+    pub fn column_index(&self) -> usize {
+        self.column_index
+    }
+
+    /// Rotation of this query.
+    pub fn rotation(&self) -> Rotation {
+        self.rotation
+    }
+}
+
 /// Query of instance column at a certain relative location
 #[derive(Copy, Clone, Debug)]
 pub struct InstanceQuery {
@@ -299,6 +334,23 @@ pub struct InstanceQuery {
     pub(crate) column_index: usize,
     /// Rotation of this query
     pub(crate) rotation: Rotation,
+}
+
+impl InstanceQuery {
+    /// Index of this query in the constraint system's query list of this column type.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Index of the queried column.
+    pub fn column_index(&self) -> usize {
+        self.column_index
+    }
+
+    /// Rotation of this query.
+    pub fn rotation(&self) -> Rotation {
+        self.rotation
+    }
 }
 
 /// A fixed column of a lookup table.
@@ -890,8 +942,9 @@ impl<F: Field, C: Into<Constraint<F>>, Iter: IntoIterator<Item = C>> IntoIterato
     }
 }
 
+/// A named gate: a set of polynomial constraints created by [`ConstraintSystem::create_gate`].
 #[derive(Clone, Debug)]
-pub(crate) struct Gate<F: Field> {
+pub struct Gate<F: Field> {
     name: &'static str,
     constraint_names: Vec<&'static str>,
     polys: Vec<Expression<F>>,
@@ -902,15 +955,18 @@ pub(crate) struct Gate<F: Field> {
 }
 
 impl<F: Field> Gate<F> {
-    pub(crate) fn name(&self) -> &'static str {
+    /// The gate's name.
+    pub fn name(&self) -> &'static str {
         self.name
     }
 
-    pub(crate) fn constraint_name(&self, constraint_index: usize) -> &'static str {
+    /// The name of the constraint at `constraint_index`.
+    pub fn constraint_name(&self, constraint_index: usize) -> &'static str {
         self.constraint_names[constraint_index]
     }
 
-    pub(crate) fn polynomials(&self) -> &[Expression<F>] {
+    /// The polynomial constraints of this gate, with virtual selectors already substituted.
+    pub fn polynomials(&self) -> &[Expression<F>] {
         &self.polys
     }
 
@@ -1164,7 +1220,8 @@ impl<F: Field> ConstraintSystem<F> {
         panic!("get_instance_query_index called for non-existent query");
     }
 
-    pub(crate) fn get_any_query_index(&self, column: Column<Any>) -> usize {
+    /// The index into the column type's query list of the `Rotation::cur()` query on `column`.
+    pub fn get_any_query_index(&self, column: Column<Any>) -> usize {
         match column.column_type() {
             Any::Advice => self.get_advice_query_index(
                 Column::<Advice>::try_from(column).unwrap(),
@@ -1391,6 +1448,61 @@ impl<F: Field> ConstraintSystem<F> {
         };
         self.num_instance_columns += 1;
         tmp
+    }
+
+    /// Number of fixed columns, including the columns that compressed selectors were mapped to.
+    pub fn num_fixed_columns(&self) -> usize {
+        self.num_fixed_columns
+    }
+
+    /// Number of advice columns.
+    pub fn num_advice_columns(&self) -> usize {
+        self.num_advice_columns
+    }
+
+    /// Number of instance columns.
+    pub fn num_instance_columns(&self) -> usize {
+        self.num_instance_columns
+    }
+
+    /// Number of virtual selectors.
+    pub fn num_selectors(&self) -> usize {
+        self.num_selectors
+    }
+
+    /// The gates of this constraint system.
+    pub fn gates(&self) -> &[Gate<F>] {
+        &self.gates
+    }
+
+    /// The distinct advice queries `(column, rotation)`, indexed by query index.
+    pub fn advice_queries(&self) -> &[(Column<Advice>, Rotation)] {
+        &self.advice_queries
+    }
+
+    /// The distinct instance queries `(column, rotation)`, indexed by query index.
+    pub fn instance_queries(&self) -> &[(Column<Instance>, Rotation)] {
+        &self.instance_queries
+    }
+
+    /// The distinct fixed queries `(column, rotation)`, indexed by query index.
+    pub fn fixed_queries(&self) -> &[(Column<Fixed>, Rotation)] {
+        &self.fixed_queries
+    }
+
+    /// The permutation argument.
+    pub fn permutation(&self) -> &permutation::Argument {
+        &self.permutation
+    }
+
+    /// The lookup arguments.
+    pub fn lookups(&self) -> &[lookup::Argument<F>] {
+        &self.lookups
+    }
+
+    /// Fixed columns enabled for constants.
+    pub fn constants(&self) -> &[Column<Fixed>] {
+        &self.constants
     }
 
     /// Compute the degree of the constraint system (the maximum degree of all

@@ -10,7 +10,7 @@ pub(crate) mod verifier;
 
 /// A permutation argument.
 #[derive(Debug, Clone)]
-pub(crate) struct Argument {
+pub struct Argument {
     /// A sequence of columns involved in the argument.
     columns: Vec<Column<Any>>,
 }
@@ -64,21 +64,21 @@ impl Argument {
         }
     }
 
-    pub(crate) fn get_columns(&self) -> Vec<Column<Any>> {
+    /// The columns involved in the argument, in the order they were enabled.
+    pub fn get_columns(&self) -> Vec<Column<Any>> {
         self.columns.clone()
     }
 }
 
 /// The verifying key for a single permutation argument.
 #[derive(Clone, Debug)]
-pub(crate) struct VerifyingKey<C: CurveAffine> {
+pub struct VerifyingKey<C: CurveAffine> {
     commitments: Vec<C>,
 }
 
 impl<C: CurveAffine> VerifyingKey<C> {
-    /// The commitments to the permutation columns (one per column), for Lean fixture export.
-    #[cfg(feature = "unstable-verifier-fingerprint")]
-    pub(crate) fn commitments(&self) -> &[C] {
+    /// The commitments to the permutation columns (one per column).
+    pub fn commitments(&self) -> &[C] {
         &self.commitments
     }
 }

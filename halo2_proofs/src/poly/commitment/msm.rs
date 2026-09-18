@@ -140,8 +140,10 @@ impl<'a, C: CurveAffine> MSM<'a, C> {
     /// fingerprint export are defined in terms of it, so the exported view cannot drift from the
     /// evaluated one. Returning borrows keeps `eval` — the production verifier hot path — free of the
     /// `O(params.n)` `g_scalars` copy; only the (feature-gated) fingerprint export clones.
+    /// The terms of this MSM: scalars on the `G` generators, on `W`, on `U`, and the map of
+    /// other bases (keyed by x-coordinate, valued by `(scalar, y-coordinate)`).
     #[allow(clippy::type_complexity)]
-    fn terms(
+    pub fn terms(
         &self,
     ) -> (
         Option<&[C::Scalar]>,
