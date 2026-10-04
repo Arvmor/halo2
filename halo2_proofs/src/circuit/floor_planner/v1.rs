@@ -1,4 +1,8 @@
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use ff::Field;
 
@@ -15,6 +19,64 @@ use crate::{
 };
 
 mod strategy;
+
+/// The placement [`strategy::slot_in_biggest_advice_first`] computed for a list of region
+/// shapes, kept with that list.
+struct Placement {
+    /// Each region's columns (sorted) and row count, in region order.
+    shapes: Vec<(Vec<RegionColumn>, usize)>,
+    regions: Vec<RegionStart>,
+    column_allocations: strategy::CircuitAllocations,
+}
+
+/// The placement of `regions`, computed once per list of region shapes in this process
+/// (Mitra).
+///
+/// The placement depends only on the shapes: each region's columns and row count, in region
+/// order. A circuit proven many times lays out the same shapes for its keys and for every
+/// proof, and placing them takes time quadratic in the regions that share a column: for
+/// Mitra's state step at 8x8, 26,000 regions, 13.6 s of a 25 s proof, where measuring and
+/// assigning take 0.2 s. A placement is reused for an identical list only: the whole list is
+/// compared, not just its hash, so the layout is exactly what the strategy gives.
+fn cached_placement(regions: Vec<RegionShape>) -> Arc<Placement> {
+    type Cache = Mutex<HashMap<u64, Vec<Arc<Placement>>>>;
+    static CACHE: OnceLock<Cache> = OnceLock::new();
+
+    let shapes: Vec<(Vec<RegionColumn>, usize)> = regions
+        .iter()
+        .map(|region| {
+            let mut columns: Vec<RegionColumn> = region.columns().iter().copied().collect();
+            columns.sort_unstable();
+            (columns, region.row_count())
+        })
+        .collect();
+    let mut hasher = DefaultHasher::new();
+    shapes.hash(&mut hasher);
+    let key = hasher.finish();
+    let cache = CACHE.get_or_init(Default::default);
+    let find = |cache: &HashMap<u64, Vec<Arc<Placement>>>| {
+        cache
+            .get(&key)
+            .and_then(|placements| placements.iter().find(|p| p.shapes == shapes))
+            .cloned()
+    };
+    if let Some(hit) = find(&cache.lock().unwrap()) {
+        return hit;
+    }
+    let (regions, column_allocations) = strategy::slot_in_biggest_advice_first(regions);
+    let mut cache = cache.lock().unwrap();
+    // Another thread may have placed the same shapes meanwhile.
+    if let Some(hit) = find(&cache) {
+        return hit;
+    }
+    let placement = Arc::new(Placement {
+        shapes,
+        regions,
+        column_allocations,
+    });
+    cache.entry(key).or_default().push(placement.clone());
+    placement
+}
 
 /// The version 1 [`FloorPlanner`] provided by `halo2`.
 ///
@@ -75,9 +137,10 @@ impl FloorPlanner for V1 {
         }
 
         // Planning:
-        // - Position the regions.
-        let (regions, column_allocations) = strategy::slot_in_biggest_advice_first(measure.regions);
-        plan.regions = regions;
+        // - Position the regions, once per list of region shapes.
+        let placement = cached_placement(measure.regions);
+        plan.regions = placement.regions.clone();
+        let column_allocations = &placement.column_allocations;
 
         // - Determine how many rows our planned circuit will require.
         let first_unassigned_row = column_allocations
